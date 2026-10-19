@@ -1,10 +1,25 @@
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
+// Quando empacotado com pkg, o config.json fica ao lado do .exe
+const baseDir = process.pkg ? path.dirname(process.execPath) : __dirname;
 const config = JSON.parse(
-  fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')
+  fs.readFileSync(path.join(baseDir, 'config.json'), 'utf8')
 );
+
+// Se não for o processo "filho", reabre a si mesmo sem janela e encerra
+if (!process.env.LEMBRETE_FILHO) {
+  const args = process.pkg ? [] : [__filename];
+  const filho = spawn(process.execPath, args, {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
+    env: { ...process.env, LEMBRETE_FILHO: '1' },
+  });
+  filho.unref();
+  process.exit(0);
+}
 
 function executar(comando, args, env) {
   return new Promise((resolve, reject) => {
@@ -57,32 +72,24 @@ function notificar(texto) {
     $n.Dispose()
   `;
   executar('powershell', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', script],
-    { MSG: texto }).catch(err => console.error('Erro na notificação:', err.message));
+    { MSG: texto }).catch(() => {});
 }
 
 let proximo = 0;
 
 async function verificar() {
   try {
-    if (await estaJogando()) {
-      console.log(new Date().toLocaleTimeString(), 'jogando, pulando lembrete');
-      return;
-    }
+    if (await estaJogando()) return;
 
     const ociosidade = await segundosSemUsar();
-    if (ociosidade > config.ausenciaMaxMinutos * 60) {
-      console.log(new Date().toLocaleTimeString(), 'ausente, pulando lembrete');
-      return;
-    }
+    if (ociosidade > config.ausenciaMaxMinutos * 60) return;
 
     const texto = config.lembretes[proximo % config.lembretes.length];
     proximo++;
     notificar(texto);
-    console.log(new Date().toLocaleTimeString(), 'lembrete:', texto);
   } catch (err) {
-    console.error('Erro:', err.message);
+    // sem janela de log: erros são ignorados silenciosamente
   }
 }
 
-console.log(`Lembretes a cada ${config.intervaloMinutos} min. Ctrl+C para parar.`);
 setInterval(verificar, config.intervaloMinutos * 60 * 1000);

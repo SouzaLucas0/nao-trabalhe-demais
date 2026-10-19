@@ -21,6 +21,11 @@ if (!process.env.LEMBRETE_FILHO) {
   process.exit(0);
 }
 
+const debug = !!process.env.LEMBRETE_FILHO;
+const log = (...msg) => {
+  if (debug) console.log(new Date().toLocaleTimeString(), ...msg);
+};
+
 function executar(comando, args, env) {
   return new Promise((resolve, reject) => {
     execFile(comando, args, { env: { ...process.env, ...env }, windowsHide: true },
@@ -79,17 +84,25 @@ let proximo = 0;
 
 async function verificar() {
   try {
-    if (await estaJogando()) return;
+    if (await estaJogando()) {
+      log('jogando, pulando lembrete');
+      return;
+    }
 
     const ociosidade = await segundosSemUsar();
-    if (ociosidade > config.ausenciaMaxMinutos * 60) return;
+    if (ociosidade > config.ausenciaMaxMinutos * 60) {
+      log(`ausente há ${ociosidade}s, pulando lembrete`);
+      return;
+    }
 
     const texto = config.lembretes[proximo % config.lembretes.length];
     proximo++;
     notificar(texto);
+    log('lembrete:', texto);
   } catch (err) {
-    // sem janela de log: erros são ignorados silenciosamente
+    log('erro:', err.message);
   }
 }
 
+log(`Lembretes a cada ${config.intervaloMinutos} min. Ctrl+C para parar.`);
 setInterval(verificar, config.intervaloMinutos * 60 * 1000);

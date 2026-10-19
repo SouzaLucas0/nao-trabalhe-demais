@@ -1,0 +1,11 @@
+{
+  "intervaloMinutos": 45,
+  "ausenciaMaxMinutos": 5,
+  "jogos": ["aces.exe", "WardogsClient-Win64-Shipping.exe"],
+  "lembretes": [
+    "Hora de beber água 💧",
+    "Levanta, estica as pernas e anda um pouco 🚶",
+    "Olha para longe da tela por 20 segundos 👀",
+    "Respira fundo e alonga o pescoço 🧘"
+  ]
+}
